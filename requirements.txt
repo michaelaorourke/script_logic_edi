@@ -1,0 +1,16 @@
+# EDI 837 Generator Requirements
+
+# Core Dependencies
+pymongo>=4.0.0
+python-dateutil>=2.8.2
+
+# Development Dependencies
+pytest>=7.0.0
+pytest-cov>=4.0.0
+black>=22.0.0
+mypy>=1.0.0
+pylint>=2.15.0
+
+# Optional Performance Enhancements
+python-dotenv>=0.19.0  # For .env file support
+tqdm>=4.65.0           # For progress bars (future enhancement)
