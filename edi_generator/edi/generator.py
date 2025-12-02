@@ -20,6 +20,7 @@ from ..utils.formatters import (
     format_phone,
     truncate_element
 )
+from ..utils.counter_manager import EDICounterManager
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ class EDIGenerator:
         self.edi_config = settings.edi
         self.billing_provider = settings.billing_provider
         self.segment_builder = EDISegmentBuilder()
+        self.counter_manager = EDICounterManager()
 
         # Counters for hierarchical levels and service lines
         self.hl_counter = 0
@@ -61,13 +63,18 @@ class EDIGenerator:
         bht_date = now.strftime("%Y%m%d")
         bht_time = now.strftime("%H%M")
 
+        # Get next control numbers from counter manager
+        interchange_num = self.counter_manager.get_next_interchange_number()
+        group_num = self.counter_manager.get_next_group_number()
+        trans_num = self.counter_manager.get_transaction_number()
+
         # ISA - Interchange Control Header
         segments.append(self.segment_builder.build_isa(
             sender_id=self.edi_config.interchange_sender_id,
             receiver_id=self.edi_config.interchange_receiver_id,
             date=isa_date,
             time=isa_time,
-            control_number=self.edi_config.interchange_control_number,
+            control_number=interchange_num,  # Dynamic control number
             usage=self.edi_config.usage_indicator
         ))
 
@@ -78,7 +85,7 @@ class EDIGenerator:
             self.edi_config.functional_group_receiver,
             bht_date,
             isa_time,
-            self.edi_config.group_control_number,
+            group_num,  # Dynamic control number
             "X",
             self.edi_config.implementation_version
         ))
@@ -87,7 +94,7 @@ class EDIGenerator:
         self.st_index = len(segments)
         segments.append(self.segment_builder.build_segment(
             "ST", "837",
-            self.edi_config.transaction_control_number,
+            trans_num,  # Dynamic control number (always "0001")
             self.edi_config.implementation_version
         ))
 
@@ -176,19 +183,19 @@ class EDIGenerator:
         segment_count = len(segments) - self.st_index + 1
         segments.append(self.segment_builder.build_segment(
             "SE", segment_count,
-            self.edi_config.transaction_control_number
+            trans_num  # Must match ST02
         ))
 
         # GE - Functional Group Trailer
         segments.append(self.segment_builder.build_segment(
             "GE", "1",
-            self.edi_config.group_control_number
+            group_num  # Must match GS06
         ))
 
         # IEA - Interchange Control Trailer
         segments.append(self.segment_builder.build_segment(
             "IEA", "1",
-            self.edi_config.interchange_control_number
+            interchange_num  # Must match ISA13
         ))
 
         logger.info(f"Generated {len(segments)} EDI segments")

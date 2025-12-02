@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/michaelorourke/Downloads/SL-20251201 (1)/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

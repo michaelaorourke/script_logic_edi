@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from edi_generator.config.settings import Settings
 from edi_generator.database.connection import DatabaseConnection
 from edi_generator.edi.generator import EDIGenerator
+from edi_generator.utils.counter_manager import EDICounterManager
 from test_claim_ids import TEST_CLAIM_IDS
 
 # Configure logging
@@ -179,6 +180,25 @@ Examples:
         help="Only validate EDI output, don't write file"
     )
 
+    # Counter management options
+    parser.add_argument(
+        "--show-counters",
+        action="store_true",
+        help="Display current EDI control number counter values"
+    )
+
+    parser.add_argument(
+        "--reset-counters",
+        action="store_true",
+        help="Reset interchange control number counter to 1 (requires confirmation)"
+    )
+
+    parser.add_argument(
+        "--set-interchange",
+        type=int,
+        help="Set interchange control number to specific value"
+    )
+
     return parser
 
 
@@ -203,6 +223,38 @@ def main() -> int:
     # Set logging level
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
+
+    # Handle counter management operations first (no database needed)
+    if args.show_counters:
+        counter_mgr = EDICounterManager()
+        counters = counter_mgr.get_current_values()
+        print("\n" + "=" * 50)
+        print("EDI Control Numbers:")
+        print("=" * 50)
+        print(f"  Interchange Control Number: {counters['interchange_control_number']:09d}")
+        print(f"  Group Control Number:        4 (static)")
+        print(f"  Transaction Control Number:  0001 (static)")
+        print(f"  Last Updated:                {counters.get('last_updated', 'N/A')}")
+        if 'reset_at' in counters:
+            print(f"  Last Reset:                  {counters['reset_at']}")
+        print("=" * 50)
+        return 0
+
+    if args.reset_counters:
+        response = input("\n⚠️  Are you sure you want to reset the interchange counter to 1? (yes/no): ")
+        if response.lower() == 'yes':
+            counter_mgr = EDICounterManager()
+            counter_mgr.reset_counters(confirm=True)
+            print("✅ Interchange counter has been reset successfully")
+        else:
+            print("❌ Counter reset cancelled")
+        return 0
+
+    if args.set_interchange:
+        counter_mgr = EDICounterManager()
+        counter_mgr.set_interchange_counter(args.set_interchange)
+        print(f"✅ Interchange control number set to {args.set_interchange}")
+        return 0
 
     # Load configuration
     config_file = args.config if args.config else None

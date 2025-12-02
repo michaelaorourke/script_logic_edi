@@ -91,8 +91,12 @@ class DatabaseConnection:
         match_conditions = {}
 
         if claim_ids:
-            # For claim_detail collection, use claim_id field (string)
-            match_conditions["claim_id"] = {"$in": claim_ids}
+            # For claim_detail collection, check if these are claim_numbers or claim_ids
+            # If they look like claim_numbers (e.g., MP20220414005), use claim_number field
+            if claim_ids and claim_ids[0] and not claim_ids[0].startswith('6'):
+                match_conditions["claim_number"] = {"$in": claim_ids}
+            else:
+                match_conditions["claim_id"] = {"$in": claim_ids}
 
         if client_id:
             match_conditions["client_id"] = client_id
